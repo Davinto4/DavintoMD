@@ -1,2 +1,2 @@
 # DavintoMD
-Davinto MD - A WhatsApp bot with Telegram QR pairing.
+Davinto MD - A simple WhatsApp bot
