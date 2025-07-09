@@ -1,15 +1,15 @@
 import 'dotenv/config'; // Loads environment variables from .env file
-import Baileys from '@whiskeysockets/baileys'; // Import the default export of the Baileys module
-
-// Now, destructure all the required exports from the `Baileys` object
-const {
-    default: makeWASocket, // The main makeWASocket function is the default export
+import {
+    default as makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
     makeInMemoryStore,
-    PHONENUMBER_MCC // PHONENUMBER_MCC is now a property of the `Baileys` object
-} = Baileys;
+    // PHONENUMBER_MCC // Remove PHONENUMBER_MCC from here
+} from '@whiskeysockets/baileys';
+
+// Import the entire Baileys library as a namespace to access other utilities like PHONENUMBER_MCC
+import * as BaileysConstants from '@whiskeysockets/baileys';
 
 import { Boom } from '@hapi/boom';
 import OpenAI from 'openai';
@@ -23,7 +23,7 @@ const openai = new OpenAI({
 });
 
 if (!process.env.OPENAI_API_KEY) {
-    console.error('Error: OPENENAI_API_KEY is not set in your .env file.');
+    console.error('Error: OPENAI_API_KEY is not set in your .env file.');
     console.error('Please get your API key from platform.openai.com/account/api-keys and add it to .env');
     process.exit(1);
 }
@@ -101,7 +101,8 @@ async function connectToWhatsApp() {
             let phoneNumber = await question('Please enter your WhatsApp phone number (e.g., 2348012345678): ');
             phoneNumber = phoneNumber.replace(/[^0-9]/g, ''); // Remove non-numeric characters
 
-            if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) { // PHONENUMBER_MCC is correctly available here
+            // Use BaileysConstants.PHONENUMBER_MCC instead of PHONENUMBER_MCC directly
+            if (!Object.keys(BaileysConstants.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
                 console.log("Please enter a valid phone number with country code. Example: 2348012345678 for Nigeria.");
                 sock.ev.removeAllListeners();
                 return connectToWhatsApp();
@@ -179,4 +180,3 @@ async function connectToWhatsApp() {
 
 // Start the bot
 connectToWhatsApp();
-        
