@@ -1,39 +1,19 @@
-<<<<<<< HEAD
 {
   "name": "davintomd",
-=======
-"name": "davintomd",
->>>>>>> 11dbd67aa9325ce7c4dd6a946ea11f7d67567182
   "version": "1.0.0",
-  "description": "Davinto MD - A WhatsApp bot with Telegram QR pairing.",
+  "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Davinto4/DavintoMD.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/Davinto4/DavintoMD/issues"
-  },
-  "homepage": "https://github.com/Davinto4/DavintoMD#readme",
   "dependencies": {
-<<<<<<< HEAD
-    "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "^6.7.18",
-    "node-telegram-bot-api": "^0.66.0",
-    "qrcode": "^1.5.4"
-  }
-=======
-    "baileys": "^6.7.18",
-    "dotenv": "^17.1.0",
-    "openai": "^5.8.3",
+    "@whiskeysockets/baileys": "^6.x.x || ^7.x.x || ^8.x.x",
+    "dotenv": "^16.x.x",
+    "openai": "^4.x.x",
     "qrcode-terminal": "^0.12.0"
-  },
-  "devDependencies": {}
->>>>>>> 11dbd67aa9325ce7c4dd6a946ea11f7d67567182
+  }
 }
