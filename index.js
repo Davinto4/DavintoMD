@@ -1,12 +1,16 @@
 import 'dotenv/config'; // Loads environment variables from .env file
-import {
-    default as makeWASocket,
+import Baileys from '@whiskeysockets/baileys'; // Import the default export of the Baileys module
+
+// Now, destructure all the required exports from the `Baileys` object
+const {
+    default: makeWASocket, // The main makeWASocket function is the default export
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
     makeInMemoryStore,
-    PHONENUMBER_MCC
-} from '@whiskeysockets/baileys';
+    PHONENUMBER_MCC // PHONENUMBER_MCC is now a property of the `Baileys` object
+} = Baileys;
+
 import { Boom } from '@hapi/boom';
 import OpenAI from 'openai';
 import pino from 'pino';
@@ -19,7 +23,7 @@ const openai = new OpenAI({
 });
 
 if (!process.env.OPENAI_API_KEY) {
-    console.error('Error: OPENAI_API_KEY is not set in your .env file.');
+    console.error('Error: OPENENAI_API_KEY is not set in your .env file.');
     console.error('Please get your API key from platform.openai.com/account/api-keys and add it to .env');
     process.exit(1);
 }
@@ -52,7 +56,7 @@ async function connectToWhatsApp() {
     console.log('Connecting to WhatsApp...');
 
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    const { version, isLatest } = await fetchLatestBaileysVersion(); // Corrected: 'is Latest' -> 'isLatest'
+    const { version, isLatest } = await fetchLatestBaileysVersion();
     console.log(`Using Baileys version ${version.join('.')} (latest: ${isLatest})`);
 
     const sock = makeWASocket({
@@ -97,7 +101,7 @@ async function connectToWhatsApp() {
             let phoneNumber = await question('Please enter your WhatsApp phone number (e.g., 2348012345678): ');
             phoneNumber = phoneNumber.replace(/[^0-9]/g, ''); // Remove non-numeric characters
 
-            if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+            if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) { // PHONENUMBER_MCC is correctly available here
                 console.log("Please enter a valid phone number with country code. Example: 2348012345678 for Nigeria.");
                 sock.ev.removeAllListeners();
                 return connectToWhatsApp();
@@ -168,7 +172,7 @@ async function connectToWhatsApp() {
         const messages = store.messages[jid] || [];
         return {
             messages: messages.slice(cursor ? messages.findIndex(m => m.key.id === cursor.id) : 0, cursor ? undefined : count),
-            isEnd: messages.length === 0 || messages.length === (cursor ? messages.findIndex(m => m.key.id === cursor.id) : count) // Corrected: 'is End' -> 'isEnd'
+            isEnd: messages.length === 0 || messages.length === (cursor ? messages.findIndex(m => m.key.id === cursor.id) : count)
         };
     };
 }
