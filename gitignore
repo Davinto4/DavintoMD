@@ -1,0 +1,11 @@
+  # Node.js modules
+node_modules/
+
+# Environment variables
+.env
+
+# Baileys session data
+auth_info_baileys/
+
+# Log files (optional, but good practice)
+*.log
