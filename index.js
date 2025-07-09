@@ -1,178 +1,111 @@
-import 'dotenv/config'; // Loads environment variables from .env file
+// DavintoMD - WhatsApp AI Bot import 'dotenv/config'; import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeInMemoryStore, DisconnectReason, PHONENUMBER_MCC } from '@whiskeysockets/baileys'; import { Boom } from '@hapi/boom'; import pino from 'pino'; import readline from 'readline'; import qrcode from 'qrcode-terminal'; import OpenAI from 'openai'; import fs from 'fs';
 
-// Import the entire Baileys library as a single default object (like 'pkg' in the error suggestion)
-import Baileys from '@whiskeysockets/baileys';
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout }); const question = (q) => new Promise(resolve => rl.question(q, resolve)); const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-import { Boom } from '@hapi/boom';
-import OpenAI from 'openai';
-import pino from 'pino';
-import readline from 'readline';
-import qrcode from 'qrcode-terminal'; // Still useful for initial QR fallback/debugging if needed
+if (!process.env.OPENAI_API_KEY) { console.error('Missing OPENAI_API_KEY'); process.exit(1); }
 
-// --- OpenAI API Configuration ---
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// In-Memory Store const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
 
-if (!process.env.OPENAI_API_KEY) {
-    console.error('Error: OPENAI_API_KEY is not set in your .env file.');
-    console.error('Please get your API key from platform.openai.com/account/api-keys and add it to .env');
-    process.exit(1);
+// JSON-based storage const PROFILE_PATH = './db/user_profiles.json'; const SETTINGS_PATH = './db/group_settings.json'; const SCORES_PATH = './db/game_scores.json'; if (!fs.existsSync('./db')) fs.mkdirSync('./db'); if (!fs.existsSync(PROFILE_PATH)) fs.writeFileSync(PROFILE_PATH, '{}'); if (!fs.existsSync(SETTINGS_PATH)) fs.writeFileSync(SETTINGS_PATH, '{}'); if (!fs.existsSync(SCORES_PATH)) fs.writeFileSync(SCORES_PATH, '{}'); const getProfiles = () => JSON.parse(fs.readFileSync(PROFILE_PATH)); const saveProfiles = (d) => fs.writeFileSync(PROFILE_PATH, JSON.stringify(d, null, 2)); const updateUserProfile = (jid, name) => { const data = getProfiles(); if (!data[jid]) data[jid] = { name, count: 1 }; else data[jid].count++; saveProfiles(data); }; const getSettings = () => JSON.parse(fs.readFileSync(SETTINGS_PATH)); const saveSettings = (d) => fs.writeFileSync(SETTINGS_PATH, JSON.stringify(d, null, 2)); const getScores = () => JSON.parse(fs.readFileSync(SCORES_PATH)); const saveScores = (d) => fs.writeFileSync(SCORES_PATH, JSON.stringify(d, null, 2)); const updateScore = (jid, game, delta = 1) => { const d = getScores(); if (!d[jid]) d[jid] = {}; if (!d[jid][game]) d[jid][game] = 0; d[jid][game] += delta; saveScores(d); };
+
+const OWNER_NUMBER = process.env.OWNER_NUMBER || '';
+
+async function connectToWhatsApp() { const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys'); const { version } = await fetchLatestBaileysVersion(); const sock = makeWASocket({ version, logger: pino({ level: 'silent' }), printQRInTerminal: false, auth: state, browser: ['DavintoMD', 'Desktop', '3.0'] });
+
+store.bind(sock.ev); sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => { if (qr) qrcode.generate(qr, { small: true }); if (connection === 'close') { const shouldReconnect = new Boom(lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut; if (shouldReconnect) connectToWhatsApp(); else console.log('Logged out. Delete auth_info_baileys and restart.'); } else if (connection === 'open') console.log('✅ Connected to WhatsApp'); });
+
+sock.ev.on('creds.update', saveCreds); sock.ev.on('messages.upsert', async ({ messages }) => { const msg = messages[0]; if (!msg.message || msg.key.fromMe) return; const sender = msg.key.remoteJid; const isGroup = sender.endsWith('@g.us'); const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''; const prefix = '.'; if (!text.startsWith(prefix)) return;
+
+const [cmd, ...args] = text.slice(1).trim().split(/\s+/);
+const command = cmd.toLowerCase();
+
+// Update profile
+updateUserProfile(sender, msg.pushName || 'User');
+
+// NSFW check
+const settings = getSettings();
+const nsfwEnabled = settings[sender]?.nsfw;
+if (["hentai", "r34", "nude"].includes(command) && !nsfwEnabled)
+  return await sock.sendMessage(sender, { text: 'NSFW is disabled in this group. Use .nsfw on (admin only)' }, { quoted: msg });
+
+// Commands
+if (command === 'help' || command === 'menu') {
+  const helpText = `DavintoMD Command List:\n.ai, .image, .profile, .score, .ping, .stats, .eval, .nsfw on/off, .truth, .math, .reverse, .emojify, .yt <url>, .tiktok <url>, etc.`;
+  return await sock.sendMessage(sender, { text: helpText }, { quoted: msg });
 }
 
-// --- DavintoMD Bot Persona ---
-const DavintoMDPersona = `You are DavintoMD, a multi-device WhatsApp AI assistant.
-Your primary role is to act as a helpful and informative assistant, providing concise and accurate answers.
-Maintain a friendly, professional, and slightly formal tone.
-You should be empathetic and understanding, especially when dealing with medical or personal inquiries.
-Avoid giving definitive medical advice, but rather suggest consulting a healthcare professional or reliable sources.
-You can answer questions on a wide range of topics, including general knowledge, simple medical information (non-diagnostic), technology, and daily life.
-Keep responses to the point, preferably within 2-4 sentences unless a more detailed explanation is specifically requested or absolutely necessary.
-If a question is beyond your scope or requires personal/sensitive information you cannot handle, politely decline and suggest alternative resources.
-Do not engage in casual chat, jokes, or personal opinions beyond your programmed persona.
-Always prioritize user safety and provide responsible information.`;
-
-// --- In-Memory Store for Baileys ---
-// Access makeInMemoryStore as a property of the imported Baileys object
-const store = Baileys.makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
-
-// --- Readline for input (for pairing code) ---
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
-
-// --- Main Connection Function ---
-async function connectToWhatsApp() {
-    console.log('Connecting to WhatsApp...');
-
-    // Access useMultiFileAuthState as a property of the imported Baileys object
-    const { state, saveCreds } = await Baileys.useMultiFileAuthState('auth_info_baileys');
-    // Access fetchLatestBaileysVersion as a property of the imported Baileys object
-    const { version, isLatest } = await Baileys.fetchLatestBaileysVersion();
-    console.log(`Using Baileys version ${version.join('.')} (latest: ${isLatest})`);
-
-    // Access makeWASocket as the default property of the imported Baileys object
-    const sock = Baileys.default({ // Baileys.default is the makeWASocket function
-        version,
-        logger: pino({ level: 'silent' }), // Set to 'info' for more logs, 'silent' for less
-        printQRInTerminal: false, // We'll handle QR/pairing code manually
-        auth: state,
-        browser: ['DavintoMD', 'Desktop', '3.0'] // Custom browser name
-    });
-
-    store.bind(sock.ev); // Bind the store to the socket's event emitter
-
-    // --- Event Handlers ---
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
-        if (connection === 'close') {
-            // Access DisconnectReason as a property of the imported Baileys object
-            const shouldReconnect = new Boom(lastDisconnect?.error)?.output?.statusCode !== Baileys.DisconnectReason.loggedOut;
-            console.log('Connection closed due to ', lastDisconnect?.error, ', reconnecting ', shouldReconnect);
-            // reconnect if not logged out
-            if (shouldReconnect) {
-                connectToWhatsApp();
-            } else {
-                console.log('Logged out. Please delete auth_info_baileys folder and restart to re-authenticate.');
-                process.exit(0);
-            }
-        } else if (connection === 'open') {
-            console.log('WhatsApp connection opened!');
-        }
-
-        // --- Pairing Code Logic ---
-        if (qr) {
-            console.log('QR code received. You can scan this QR code with your WhatsApp app.');
-            qrcode.generate(qr, { small: true });
-            console.log('Alternatively, try phone number pairing...');
-        }
-
-        if (sock.authState.creds.registered === false) {
-
-            console.log('\n--- Initiating Phone Number Pairing ---');
-            let phoneNumber = await question('Please enter your WhatsApp phone number (e.g., 2348012345678): ');
-            phoneNumber = phoneNumber.replace(/[^0-9]/g, ''); // Remove non-numeric characters
-
-            // Access PHONENUMBER_MCC as a property of the imported Baileys object
-            if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
-                console.log("Please enter a valid phone number with country code. Example: 2348012345678 for Nigeria.");
-                sock.ev.removeAllListeners();
-                return connectToWhatsApp();
-            }
-
-            try {
-                const code = await sock.requestPairingCode(phoneNumber);
-                console.log(`\nYour Pairing Code: ${code}`);
-                console.log('Open WhatsApp on your phone:');
-                console.log('  1. Go to Settings/Linked Devices');
-                console.log('  2. Tap "Link a Device"');
-                console.log('  3. Tap "Link with Phone Number"');
-                console.log('  4. Enter the 8-digit code shown above.');
-                console.log('\nWaiting for pairing to complete...');
-
-            } catch (error) {
-                console.error('Failed to request pairing code:', error);
-                sock.ev.removeAllListeners();
-                return connectToWhatsApp(); // Retry connection
-            }
-        }
-    });
-
-    sock.ev.on('creds.update', saveCreds);
-
-    // --- Message Handler ---
-    sock.ev.on('messages.upsert', async (m) => {
-        const msg = m.messages[0];
-        if (!msg.message) return; // Ignore messages without content
-        if (msg.key.fromMe) return; // Ignore messages sent by the bot itself
-
-        const senderId = msg.key.remoteJid;
-        const text = msg.message.extendedTextMessage?.text || msg.message.conversation || '';
-
-        console.log(`\nMessage from ${senderId}: ${text}`);
-
-        // Only respond to messages that are not empty and not from a status update
-        if (text && !senderId.endsWith('@s.whatsapp.net') && !msg.key.participant) {
-            console.log('Generating response...');
-            try {
-                const completion = await openai.chat.completions.create({
-                    model: "gpt-3.5-turbo", // You can try "gpt-4" if you have access and prefer
-                    messages: [
-                        { role: "system", content: DavintoMDPersona },
-                        { role: "user", content: text }
-                    ],
-                    max_tokens: 150, // Limit response length
-                    temperature: 0.7, // Adjust for creativity (0.0 for deterministic, 1.0 for very creative)
-                });
-
-                const botResponse = completion.choices[0].message.content.trim();
-                console.log(`Bot response: ${botResponse}`);
-
-                await sock.sendMessage(senderId, { text: botResponse }, { quoted: msg });
-
-            } catch (error) {
-                console.error('Error generating or sending response:', error);
-                if (error.response && error.response.status === 401) {
-                    console.error('OpenAI API Key invalid or expired. Please check your .env file.');
-                }
-                await sock.sendMessage(senderId, { text: "I'm sorry, I'm having trouble processing that right now. Please try again later or check my configuration." }, { quoted: msg });
-            }
-        }
-    });
-
-    // --- Handle incoming messages (for store) ---
-    store.loadMessages = async (jid, count = 20, cursor = null) => {
-        const messages = store.messages[jid] || [];
-        return {
-            messages: messages.slice(cursor ? messages.findIndex(m => m.key.id === cursor.id) : 0, cursor ? undefined : count),
-            isEnd: messages.length === 0 || messages.length === (cursor ? messages.findIndex(m => m.key.id === cursor.id) : count)
-        };
-    };
+if (command === 'profile') {
+  const profiles = getProfiles();
+  const profile = profiles[sender];
+  return await sock.sendMessage(sender, { text: `👤 ${profile.name}\nMessages: ${profile.count}` }, { quoted: msg });
 }
 
-// Start the bot
+if (command === 'nsfw') {
+  if (!isGroup) return;
+  const status = args[0];
+  if (!settings[sender]) settings[sender] = {};
+  settings[sender].nsfw = status === 'on';
+  saveSettings(settings);
+  return await sock.sendMessage(sender, { text: `NSFW ${status === 'on' ? 'enabled' : 'disabled'}` }, { quoted: msg });
+}
+
+if (command === 'ai') {
+  const prompt = args.join(' ');
+  if (!prompt) return sock.sendMessage(sender, { text: 'Usage: .ai <prompt>' }, { quoted: msg });
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-3.5-turbo',
+    messages: [{ role: 'system', content: 'You are DavintoMD' }, { role: 'user', content: prompt }],
+  });
+  return await sock.sendMessage(sender, { text: completion.choices[0].message.content.trim() }, { quoted: msg });
+}
+
+if (command === 'image') {
+  const prompt = args.join(' ');
+  const dalle = await openai.images.generate({ prompt, n: 1, size: '512x512' });
+  const imageUrl = dalle.data[0].url;
+  return await sock.sendMessage(sender, {
+    image: { url: imageUrl },
+    caption: `🎨 Generated image for: ${prompt}`
+  }, { quoted: msg });
+}
+
+if (command === 'ping') {
+  const t = Date.now();
+  await sock.sendMessage(sender, { text: 'Pinging...' });
+  return sock.sendMessage(sender, { text: `🏓 Pong: ${Date.now() - t}ms` });
+}
+
+if (command === 'score') {
+  const scores = getScores()[sender] || {};
+  const reply = Object.entries(scores).map(([g,v]) => `🎮 ${g}: ${v}`).join('\n') || 'No scores yet.';
+  return await sock.sendMessage(sender, { text: reply }, { quoted: msg });
+}
+
+if (command === 'reverse') {
+  const reversed = args.join(' ').split('').reverse().join('');
+  return await sock.sendMessage(sender, { text: reversed }, { quoted: msg });
+}
+
+if (command === 'emojify') {
+  const emojified = args.join(' ').split('').map(c => c.match(/[a-zA-Z]/) ? `🅰️${c}` : c).join('');
+  return await sock.sendMessage(sender, { text: emojified }, { quoted: msg });
+}
+
+if (command === 'eval' && msg.key.participant === OWNER_NUMBER) {
+  try {
+    const out = eval(args.join(' '));
+    return sock.sendMessage(sender, { text: `${out}` });
+  } catch (e) {
+    return sock.sendMessage(sender, { text: `${e}` });
+  }
+}
+
+if (command === 'yt' || command === 'youtube') {
+  return sock.sendMessage(sender, { text: '🚧 YouTube download placeholder.' }, { quoted: msg });
+}
+
+}); }
+
 connectToWhatsApp();
-    
+
+                                                                                              
