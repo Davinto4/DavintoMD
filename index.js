@@ -1,12 +1,8 @@
 import 'dotenv/config'; // Loads environment variables from .env file
-import {
-    default as makeWASocket,
-    useMultiFileAuthState,
-    DisconnectReason,
-    fetchLatestBaileysVersion,
-    makeInMemoryStore,
-    PHONENUMBER_MCC
-} from '@whiskeysockets/baileys';
+
+// Import the entire Baileys library as a single default object (like 'pkg' in the error suggestion)
+import Baileys from '@whiskeysockets/baileys';
+
 import { Boom } from '@hapi/boom';
 import OpenAI from 'openai';
 import pino from 'pino';
@@ -36,9 +32,9 @@ If a question is beyond your scope or requires personal/sensitive information yo
 Do not engage in casual chat, jokes, or personal opinions beyond your programmed persona.
 Always prioritize user safety and provide responsible information.`;
 
-// --- In-Memory Store for Baileys (Optional but recommended) ---
-// This helps manage chat history and message processing more efficiently.
-const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
+// --- In-Memory Store for Baileys ---
+// Access makeInMemoryStore as a property of the imported Baileys object
+const store = Baileys.makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
 
 // --- Readline for input (for pairing code) ---
 const rl = readline.createInterface({
@@ -51,11 +47,14 @@ const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 async function connectToWhatsApp() {
     console.log('Connecting to WhatsApp...');
 
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    const { version, isLatest } = await fetchLatestBaileysVersion();
+    // Access useMultiFileAuthState as a property of the imported Baileys object
+    const { state, saveCreds } = await Baileys.useMultiFileAuthState('auth_info_baileys');
+    // Access fetchLatestBaileysVersion as a property of the imported Baileys object
+    const { version, isLatest } = await Baileys.fetchLatestBaileysVersion();
     console.log(`Using Baileys version ${version.join('.')} (latest: ${isLatest})`);
 
-    const sock = makeWASocket({
+    // Access makeWASocket as the default property of the imported Baileys object
+    const sock = Baileys.default({ // Baileys.default is the makeWASocket function
         version,
         logger: pino({ level: 'silent' }), // Set to 'info' for more logs, 'silent' for less
         printQRInTerminal: false, // We'll handle QR/pairing code manually
@@ -70,7 +69,8 @@ async function connectToWhatsApp() {
         const { connection, lastDisconnect, qr } = update;
 
         if (connection === 'close') {
-            const shouldReconnect = new Boom(lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+            // Access DisconnectReason as a property of the imported Baileys object
+            const shouldReconnect = new Boom(lastDisconnect?.error)?.output?.statusCode !== Baileys.DisconnectReason.loggedOut;
             console.log('Connection closed due to ', lastDisconnect?.error, ', reconnecting ', shouldReconnect);
             // reconnect if not logged out
             if (shouldReconnect) {
@@ -85,7 +85,6 @@ async function connectToWhatsApp() {
 
         // --- Pairing Code Logic ---
         if (qr) {
-            // This is a fallback if phone number pairing fails or isn't used
             console.log('QR code received. You can scan this QR code with your WhatsApp app.');
             qrcode.generate(qr, { small: true });
             console.log('Alternatively, try phone number pairing...');
@@ -97,7 +96,8 @@ async function connectToWhatsApp() {
             let phoneNumber = await question('Please enter your WhatsApp phone number (e.g., 2348012345678): ');
             phoneNumber = phoneNumber.replace(/[^0-9]/g, ''); // Remove non-numeric characters
 
-            if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+            // Access PHONENUMBER_MCC as a property of the imported Baileys object
+            if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
                 console.log("Please enter a valid phone number with country code. Example: 2348012345678 for Nigeria.");
                 sock.ev.removeAllListeners();
                 return connectToWhatsApp();
@@ -175,3 +175,4 @@ async function connectToWhatsApp() {
 
 // Start the bot
 connectToWhatsApp();
+    
