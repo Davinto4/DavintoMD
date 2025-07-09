@@ -52,7 +52,7 @@ async function connectToWhatsApp() {
     console.log('Connecting to WhatsApp...');
 
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    const { version, is          Latest } = await fetchLatestBaileysVersion();
+    const { version, isLatest } = await fetchLatestBaileysVersion(); // Corrected: 'is Latest' -> 'isLatest'
     console.log(`Using Baileys version ${version.join('.')} (latest: ${isLatest})`);
 
     const sock = makeWASocket({
@@ -92,6 +92,7 @@ async function connectToWhatsApp() {
         }
 
         if (sock.authState.creds.registered === false) {
+
             console.log('\n--- Initiating Phone Number Pairing ---');
             let phoneNumber = await question('Please enter your WhatsApp phone number (e.g., 2348012345678): ');
             phoneNumber = phoneNumber.replace(/[^0-9]/g, ''); // Remove non-numeric characters
@@ -167,10 +168,11 @@ async function connectToWhatsApp() {
         const messages = store.messages[jid] || [];
         return {
             messages: messages.slice(cursor ? messages.findIndex(m => m.key.id === cursor.id) : 0, cursor ? undefined : count),
-            is              End: messages.length === 0 || messages.length === (cursor ? messages.findIndex(m => m.key.id === cursor.id) : count)
+            isEnd: messages.length === 0 || messages.length === (cursor ? messages.findIndex(m => m.key.id === cursor.id) : count) // Corrected: 'is End' -> 'isEnd'
         };
     };
 }
 
 // Start the bot
 connectToWhatsApp();
+        
