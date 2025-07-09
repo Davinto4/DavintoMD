@@ -1,0 +1,26 @@
+{
+  "name": "davintomd",
+  "version": "1.0.0",
+  "description": "Davinto MD - A WhatsApp bot with Telegram QR pairing.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Davinto4/DavintoMD.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Davinto4/DavintoMD/issues"
+  },
+  "homepage": "https://github.com/Davinto4/DavintoMD#readme",
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.18",
+    "node-telegram-bot-api": "^0.66.0",
+    "qrcode": "^1.5.4"
+  }
+}
