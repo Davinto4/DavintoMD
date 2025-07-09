@@ -1,8 +1,12 @@
 import 'dotenv/config'; // Loads environment variables from .env file
-
-// Import the entire Baileys library as a single namespace object
-import * as Baileys from '@whiskeysockets/baileys';
-
+import {
+    default as makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    fetchLatestBaileysVersion,
+    makeInMemoryStore,
+    PHONENUMBER_MCC
+} from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import OpenAI from 'openai';
 import pino from 'pino';
@@ -33,8 +37,8 @@ Do not engage in casual chat, jokes, or personal opinions beyond your programmed
 Always prioritize user safety and provide responsible information.`;
 
 // --- In-Memory Store for Baileys (Optional but recommended) ---
-// Use Baileys.makeInMemoryStore
-const store = Baileys.makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
+// This helps manage chat history and message processing more efficiently.
+const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
 
 // --- Readline for input (for pairing code) ---
 const rl = readline.createInterface({
@@ -47,14 +51,11 @@ const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 async function connectToWhatsApp() {
     console.log('Connecting to WhatsApp...');
 
-    // Use Baileys.useMultiFileAuthState
-    const { state, saveCreds } = await Baileys.useMultiFileAuthState('auth_info_baileys');
-    // Use Baileys.fetchLatestBaileysVersion
-    const { version, isLatest } = await Baileys.fetchLatestBaileysVersion();
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+    const { version, isLatest } = await fetchLatestBaileysVersion();
     console.log(`Using Baileys version ${version.join('.')} (latest: ${isLatest})`);
 
-    // Use Baileys.default as makeWASocket
-    const sock = Baileys.default({
+    const sock = makeWASocket({
         version,
         logger: pino({ level: 'silent' }), // Set to 'info' for more logs, 'silent' for less
         printQRInTerminal: false, // We'll handle QR/pairing code manually
@@ -69,8 +70,7 @@ async function connectToWhatsApp() {
         const { connection, lastDisconnect, qr } = update;
 
         if (connection === 'close') {
-            // Use Baileys.DisconnectReason
-            const shouldReconnect = new Boom(lastDisconnect?.error)?.output?.statusCode !== Baileys.DisconnectReason.loggedOut;
+            const shouldReconnect = new Boom(lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('Connection closed due to ', lastDisconnect?.error, ', reconnecting ', shouldReconnect);
             // reconnect if not logged out
             if (shouldReconnect) {
@@ -97,8 +97,7 @@ async function connectToWhatsApp() {
             let phoneNumber = await question('Please enter your WhatsApp phone number (e.g., 2348012345678): ');
             phoneNumber = phoneNumber.replace(/[^0-9]/g, ''); // Remove non-numeric characters
 
-            // Use Baileys.PHONENUMBER_MCC
-            if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+            if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
                 console.log("Please enter a valid phone number with country code. Example: 2348012345678 for Nigeria.");
                 sock.ev.removeAllListeners();
                 return connectToWhatsApp();
@@ -176,4 +175,3 @@ async function connectToWhatsApp() {
 
 // Start the bot
 connectToWhatsApp();
-                         
