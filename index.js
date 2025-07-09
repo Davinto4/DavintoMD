@@ -1,28 +1,23 @@
 // DavintoMD - WhatsApp AI Bot
 
-// Missing import 'dotenv/config';
-// Missing import { Boom } from '@hapi/boom';
-// Missing import OpenAI from 'openai';
-// Missing import pino from 'pino';
-// Missing import readline from 'readline';
-// Missing import qrcode from 'qrcode-terminal';
-// Missing import fs from 'fs';
-
 import 'dotenv/config';
-import {
-  makeWASocket,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  makeInMemoryStore,
-  DisconnectReason,
-  PHONENUMBER_MCC
-} from '@whiskeysockets/baileys';
+import baileys from '@whiskeysockets/baileys'; // ✅ CommonJS compatible
 import { Boom } from '@hapi/boom';
 import OpenAI from 'openai';
 import pino from 'pino';
 import readline from 'readline';
 import qrcode from 'qrcode-terminal';
 import fs from 'fs';
+
+// ✅ Destructure Baileys exports
+const {
+  makeWASocket,
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+  makeInMemoryStore,
+  DisconnectReason,
+  PHONENUMBER_MCC
+} = baileys;
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const question = (q) => new Promise(resolve => rl.question(q, resolve));
