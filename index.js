@@ -1,7 +1,5 @@
 // DavintoMD - WhatsApp AI Bot
-
 import 'dotenv/config';
-import baileys from '@whiskeysockets/baileys'; // ✅ CommonJS compatible
 import { Boom } from '@hapi/boom';
 import OpenAI from 'openai';
 import pino from 'pino';
@@ -9,63 +7,65 @@ import readline from 'readline';
 import qrcode from 'qrcode-terminal';
 import fs from 'fs';
 
-// ✅ Destructure Baileys exports
-const {
-  makeWASocket,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  makeInMemoryStore,
-  DisconnectReason,
-  PHONENUMBER_MCC
-} = baileys;
+// ✅ Correct Baileys import: Import the entire library as a default object
+// All Baileys components will then be accessed as Baileys.ComponentName
+import Baileys from '@whiskeysockets/baileys';
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const question = (q) => new Promise(resolve => rl.question(q, resolve));
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 if (!process.env.OPENAI_API_KEY) {
-  console.error('Missing OPENAI_API_KEY in .env');
+  console.error('Missing OPENAI_API_KEY');
   process.exit(1);
 }
 
-// --- File-based storage ---
-const DB_DIR = './db';
-if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR);
-const PATHS = {
-  profiles: `${DB_DIR}/user_profiles.json`,
-  settings: `${DB_DIR}/group_settings.json`,
-  scores: `${DB_DIR}/game_scores.json`
-};
-for (const path of Object.values(PATHS)) {
-  if (!fs.existsSync(path)) fs.writeFileSync(path, '{}');
-}
+// In-Memory Store
+// Access makeInMemoryStore as a property of the imported Baileys object
+const store = Baileys.makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
 
-const getJSON = (path) => JSON.parse(fs.readFileSync(path));
-const saveJSON = (path, data) => fs.writeFileSync(path, JSON.stringify(data, null, 2));
+// JSON-based storage
+const PROFILE_PATH = './db/user_profiles.json';
+const SETTINGS_PATH = './db/group_settings.json';
+const SCORES_PATH = './db/game_scores.json';
+if (!fs.existsSync('./db')) fs.mkdirSync('./db');
+if (!fs.existsSync(PROFILE_PATH)) fs.writeFileSync(PROFILE_PATH, '{}');
+if (!fs.existsSync(SETTINGS_PATH)) fs.writeFileSync(SETTINGS_PATH, '{}');
+if (!fs.existsSync(SCORES_PATH)) fs.writeFileSync(SCORES_PATH, '{}');
 
+const getProfiles = () => JSON.parse(fs.readFileSync(PROFILE_PATH, 'utf8'));
+const saveProfiles = (d) => fs.writeFileSync(PROFILE_PATH, JSON.stringify(d, null, 2));
 const updateUserProfile = (jid, name) => {
-  const data = getJSON(PATHS.profiles);
+  const data = getProfiles();
   if (!data[jid]) data[jid] = { name, count: 1 };
   else data[jid].count++;
-  saveJSON(PATHS.profiles, data);
+  saveProfiles(data);
 };
 
+const getSettings = () => JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8'));
+const saveSettings = (d) => fs.writeFileSync(SETTINGS_PATH, JSON.stringify(d, null, 2));
+
+const getScores = () => JSON.parse(fs.readFileSync(SCORES_PATH, 'utf8'));
+const saveScores = (d) => fs.writeFileSync(SCORES_PATH, JSON.stringify(d, null, 2));
 const updateScore = (jid, game, delta = 1) => {
-  const scores = getJSON(PATHS.scores);
-  if (!scores[jid]) scores[jid] = {};
-  if (!scores[jid][game]) scores[jid][game] = 0;
-  scores[jid][game] += delta;
-  saveJSON(PATHS.scores, scores);
+  const d = getScores();
+  if (!d[jid]) d[jid] = {};
+  if (!d[jid][game]) d[jid][game] = 0;
+  d[jid][game] += delta;
+  saveScores(d);
 };
 
-// --- WhatsApp Setup ---
-const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
+const OWNER_NUMBER = process.env.OWNER_NUMBER || ''; // Ensure this is set in your .env file, e.g., OWNER_NUMBER='2348012345678@s.whatsapp.net'
 
 async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-  const { version } = await fetchLatestBaileysVersion();
+  // Access useMultiFileAuthState as a property of the imported Baileys object
+  const { state, saveCreds } = await Baileys.useMultiFileAuthState('auth_info_baileys');
+  // Access fetchLatestBaileysVersion as a property of the imported Baileys object
+  const { version } = await Baileys.fetchLatestBaileysVersion();
+  console.log(`Using Baileys version ${version.join('.')} (latest: fetched)`); // Changed isLatest as it's not always available for destructuring
 
-  const sock = makeWASocket({
+  // Access makeWASocket as the default property of the imported Baileys object
+  const sock = Baileys.default({ // Baileys.default is the makeWASocket function
     version,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
@@ -74,112 +74,150 @@ async function connectToWhatsApp() {
   });
 
   store.bind(sock.ev);
-
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (qr) qrcode.generate(qr, { small: true });
-
     if (connection === 'close') {
-      const shouldReconnect = new Boom(lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+      // Access DisconnectReason as a property of the imported Baileys object
+      const shouldReconnect = new Boom(lastDisconnect?.error)?.output?.statusCode !== Baileys.DisconnectReason.loggedOut;
       if (shouldReconnect) connectToWhatsApp();
-      else console.log('Logged out. Delete auth folder to re-authenticate.');
+      else console.log('Logged out. Delete auth_info_baileys and restart.');
     } else if (connection === 'open') {
       console.log('✅ Connected to WhatsApp');
+    }
+
+    if (sock.authState.creds.registered === false) {
+      console.log('\n--- Initiating Phone Number Pairing ---');
+      let phoneNumber = await question('Please enter your WhatsApp phone number (e.g., 2348012345678): ');
+      phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+
+      // Access PHONENUMBER_MCC as a property of the imported Baileys object
+      if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+        console.log("❌ Invalid phone number format. Please include the country code.");
+        sock.ev.removeAllListeners();
+        return connectToWhatsApp();
+      }
+
+      try {
+        const code = await sock.requestPairingCode(phoneNumber);
+        console.log(`\n📱 Pairing Code: ${code}`);
+        console.log('On your phone:');
+        console.log('  1. Go to Settings > Linked Devices');
+        console.log('  2. Tap "Link a Device" > "Link with Phone Number"');
+        console.log('  3. Enter the code shown above.');
+        console.log('\nWaiting for pairing to complete...');
+      } catch (error) {
+        console.error('Failed to request pairing code:', error);
+        sock.ev.removeAllListeners();
+        return connectToWhatsApp();
+      }
     }
   });
 
   sock.ev.on('creds.update', saveCreds);
-
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message || msg.key.fromMe) return;
-
     const sender = msg.key.remoteJid;
-    const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
     const isGroup = sender.endsWith('@g.us');
-    const isCmd = text.startsWith('.');
-    if (!isCmd) return;
+    const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
+    const prefix = '.';
+    if (!text.startsWith(prefix)) return;
 
     const [cmd, ...args] = text.slice(1).trim().split(/\s+/);
     const command = cmd.toLowerCase();
 
-    // Update user profile
+    // Update profile
     updateUserProfile(sender, msg.pushName || 'User');
 
-    const groupSettings = getJSON(PATHS.settings);
-    const nsfwEnabled = groupSettings[sender]?.nsfw;
+    // NSFW check (Ensure OWNER_NUMBER is correctly formatted in .env)
+    const settings = getSettings();
+    const nsfwEnabled = settings[sender]?.nsfw;
+    // Admin check for NSFW command
+    const isOwner = msg.key.participant === OWNER_NUMBER;
+
+    if (["hentai", "r34", "nude"].includes(command) && !nsfwEnabled) {
+      return await sock.sendMessage(sender, { text: 'NSFW is disabled in this group. Use .nsfw on (admin only)' }, { quoted: msg });
+    }
 
     // Commands
-    switch (command) {
-      case 'help':
-      case 'menu':
-        return sock.sendMessage(sender, {
-          text: `🤖 DavintoMD Bot Commands:
-.ai <prompt> — ChatGPT response
-.image <prompt> — Generate image (DALL·E)
-.profile — Your profile info
-.score — Your game scores
-.nsfw on/off — Toggle NSFW in group
-.ping — Latency check`
-        }, { quoted: msg });
-
-      case 'profile': {
-        const profile = getJSON(PATHS.profiles)[sender];
-        return sock.sendMessage(sender, {
-          text: `👤 Profile:
-Name: ${profile?.name || 'Unknown'}
-Messages: ${profile?.count || 0}`
-        }, { quoted: msg });
-      }
-
-      case 'score': {
-        const scores = getJSON(PATHS.scores)[sender] || {};
-        const output = Object.entries(scores)
-          .map(([game, val]) => `🎮 ${game}: ${val}`)
-          .join('\n') || 'No scores yet.';
-        return sock.sendMessage(sender, { text: output }, { quoted: msg });
-      }
-
-      case 'nsfw': {
-        if (!isGroup) return;
-        const state = args[0] === 'on';
-        if (!groupSettings[sender]) groupSettings[sender] = {};
-        groupSettings[sender].nsfw = state;
-        saveJSON(PATHS.settings, groupSettings);
-        return sock.sendMessage(sender, { text: `NSFW ${state ? 'enabled' : 'disabled'}` }, { quoted: msg });
-      }
-
-      case 'ai': {
-        const prompt = args.join(' ');
-        if (!prompt) return sock.sendMessage(sender, { text: 'Usage: .ai <prompt>' }, { quoted: msg });
-        const response = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            { role: 'system', content: 'You are DavintoMD, a helpful AI bot.' },
-            { role: 'user', content: prompt }
-          ]
-        });
-        return sock.sendMessage(sender, { text: response.choices[0].message.content.trim() }, { quoted: msg });
-      }
-
-      case 'image': {
-        const prompt = args.join(' ');
-        const img = await openai.images.generate({ prompt, n: 1, size: '512x512' });
-        return sock.sendMessage(sender, {
-          image: { url: img.data[0].url },
-          caption: `🎨 Generated image for: ${prompt}`
-        }, { quoted: msg });
-      }
-
-      case 'ping': {
-        const now = Date.now();
-        await sock.sendMessage(sender, { text: 'Pinging...' });
-        return sock.sendMessage(sender, { text: `🏓 Pong: ${Date.now() - now}ms` });
-      }
-
-      default:
-        return sock.sendMessage(sender, { text: `❓ Unknown command: .${command}` }, { quoted: msg });
+    if (command === 'help' || command === 'menu') {
+      const helpText = `DavintoMD Command List:\n.ai, .image, .profile, .score, .ping, .stats, .eval, .nsfw on/off, .truth, .math, .reverse, .emojify, .yt <url>, .tiktok <url>, etc.`;
+      return await sock.sendMessage(sender, { text: helpText }, { quoted: msg });
     }
+    if (command === 'profile') {
+      const profiles = getProfiles();
+      const profile = profiles[sender];
+      return await sock.sendMessage(sender, { text: `👤 ${profile.name}\nMessages: ${profile.count}` }, { quoted: msg });
+    }
+    if (command === 'nsfw') {
+      if (!isGroup) return await sock.sendMessage(sender, { text: 'This command can only be used in groups.' }, { quoted: msg });
+      if (!isOwner) return await sock.sendMessage(sender, { text: 'Only the bot owner can enable/disable NSFW.' }, { quoted: msg }); // Added admin check
+      const status = args[0];
+      if (!settings[sender]) settings[sender] = {};
+      settings[sender].nsfw = status === 'on';
+      saveSettings(settings);
+      return await sock.sendMessage(sender, { text: `NSFW ${status === 'on' ? 'enabled' : 'disabled'}` }, { quoted: msg });
+    }
+    if (command === 'ai') {
+      const prompt = args.join(' ');
+      if (!prompt) return sock.sendMessage(sender, { text: 'Usage: .ai <prompt>' }, { quoted: msg });
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'system', content: 'You are DavintoMD' }, { role: 'user', content: prompt }],
+      });
+      return await sock.sendMessage(sender, { text: completion.choices[0].message.content.trim() }, { quoted: msg });
+    }
+    if (command === 'image') {
+      const prompt = args.join(' ');
+      if (!prompt) return sock.sendMessage(sender, { text: 'Usage: .image <prompt>' }, { quoted: msg });
+      const dalle = await openai.images.generate({ prompt, n: 1, size: '512x512' });
+      const imageUrl = dalle.data[0].url;
+      return await sock.sendMessage(sender, { image: { url: imageUrl }, caption: `🎨 Generated image for: ${prompt}` }, { quoted: msg });
+    }
+    if (command === 'ping') {
+      const t = Date.now();
+      await sock.sendMessage(sender, { text: 'Pinging...' });
+      return sock.sendMessage(sender, { text: `🏓 Pong: ${Date.now() - t}ms` });
+    }
+    if (command === 'score') {
+      const scores = getScores()[sender] || {};
+      const reply = Object.entries(scores).map(([g,v]) => `🎮 ${g}: ${v}`).join('\n') || 'No scores yet.';
+      return await sock.sendMessage(sender, { text: reply }, { quoted: msg });
+    }
+    if (command === 'reverse') {
+      const reversed = args.join(' ').split('').reverse().join('');
+      return await sock.sendMessage(sender, { text: reversed }, { quoted: msg });
+    }
+    if (command === 'emojify') {
+      const emojified = args.join(' ').split('').map(c => c.match(/[a-zA-Z]/) ? `${c} ` : c).join(' '); // Added space after emoji for better readability
+      return await sock.sendMessage(sender, { text: emojified }, { quoted: msg });
+    }
+    // Added 'eval' admin check based on OWNER_NUMBER
+    if (command === 'eval' && msg.key.participant === OWNER_NUMBER) {
+      try {
+        const out = eval(args.join(' ')); // Be careful with eval in production!
+        return sock.sendMessage(sender, { text: `${out}` });
+      } catch (e) {
+        return sock.sendMessage(sender, { text: `Error: ${e}` });
+      }
+    }
+    if (command === 'yt' || command === 'youtube') {
+      return sock.sendMessage(sender, { text: '🚧 YouTube download placeholder. (Feature under development)' }, { quoted: msg });
+    }
+    if (command === 'tiktok') {
+        return sock.sendMessage(sender, { text: '🚧 TikTok download placeholder. (Feature under development)' }, { quoted: msg });
+    }
+
   });
+  // Added loadMessages to store binding, if needed
+  store.loadMessages = async (jid, count = 20, cursor = null) => {
+    const messages = store.messages[jid] || [];
+    return {
+      messages: messages.slice(cursor ? messages.findIndex(m => m.key.id === cursor.id) : 0, cursor ? undefined : count),
+      isEnd: messages.length === 0 || messages.length === (cursor ? messages.findIndex(m => m.key.id === cursor.id) : count)
+    };
+  };
 }
 
 connectToWhatsApp();
+             
