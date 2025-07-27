@@ -1,0 +1,18 @@
+{
+  "name": "davintomd",
+  "version": "1.0.0",
+  "description": "Simple WhatsApp MD bot using Baileys (QR or Pair Code)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.6.0",
+    "pino": "^8.15.0",
+    "qrcode-terminal": "^0.12.0",
+    "dotenv": "^16.4.0"
+  }
+}
