@@ -1,0 +1,27 @@
+{
+  "name": "davintomd",
+  "version": "1.0.0",
+  "description": "Professional WhatsApp Multi-Device Bot by Davinto",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.0",
+    "pino": "^8.15.0",
+    "qrcode-terminal": "^0.12.0",
+    "axios": "^1.5.0",
+    "fs-extra": "^11.1.1",
+    "chalk": "^4.1.2",
+    "node-fetch": "^2.6.7",
+    "mongoose": "^7.5.0",
+    "better-sqlite3": "^9.0.0",
+    "express": "^4.18.2",
+    "yt-search": "^2.10.4",
+    "fluent-ffmpeg": "^2.1.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
