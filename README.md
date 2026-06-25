@@ -12,7 +12,7 @@
 
 ### Termux / VPS
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/davinto/DavintoMD/main/deployment/install.sh)
+bash <(curl -s https://raw.githubusercontent.com/davinto4/DavintoMD/main/deployment/install.sh)
 cd DavintoMD
 node index.js
 ```
