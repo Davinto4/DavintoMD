@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DavintoMD - Premium WhatsApp Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#F97316', // Orange theme
+                        darkbg: '#0F172A',
+                        darkcard: '#1E293B'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body { background-color: #0F172A; color: #F8FAFC; }
+    </style>
+</head>
+<body class="font-sans">
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 bg-darkbg/80 backdrop-blur-md border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-primary">Davinto<span class="text-white">MD</span></h1>
+            <div class="hidden md:flex space-x-6">
+                <a href="#home" class="hover:text-primary transition">Home</a>
+                <a href="#features" class="hover:text-primary transition">Features</a>
+                <a href="#commands" class="hover:text-primary transition">Commands</a>
+                <a href="#deploy" class="hover:text-primary transition">Deploy</a>
+                <a href="#contact" class="hover:text-primary transition">Contact</a>
+            </div>
+            <a href="https://github.com/davinto4/DavintoMD" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition">GitHub</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="pt-32 pb-20 px-4 text-center">
+        <div class="max-w-4xl mx-auto">
+            <img src="https://i.supaimg.com/f31a85b4-8ed0-43c6-84c3-df2e2387d7ea/ad3cf6cb-bed1-4414-b342-1648e634b35a.png" alt="DavintoMD" class="w-48 h-48 mx-auto rounded-full shadow-2xl shadow-primary/20 mb-8">
+            <h2 class="text-5xl md:text-7xl font-extrabold mb-6">The Ultimate <span class="text-primary">WhatsApp</span> Bot</h2>
+            <p class="text-xl text-gray-400 mb-8">DavintoMD is a premium, multi-device WhatsApp bot built with Node.js and Baileys. Fast, secure, and fully customizable.</p>
+            <div class="flex justify-center gap-4">
+                <a href="https://whatsapp.com/channel/0029Vb1V3aWC6ZvguZLoMv40" class="bg-green-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-green-700 transition">Join Channel</a>                <a href="#deploy" class="bg-primary text-white px-8 py-3 rounded-lg font-bold hover:bg-orange-600 transition">Deploy Now</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 px-4 bg-darkcard">
+        <div class="max-w-7xl mx-auto">
+            <h3 class="text-4xl font-bold text-center mb-12">Premium Features</h3>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="p-6 bg-darkbg rounded-xl border border-gray-800 hover:border-primary transition">
+                    <div class="text-4xl mb-4">🚀</div>
+                    <h4 class="text-xl font-bold mb-2">Lightning Fast</h4>
+                    <p class="text-gray-400">Optimized Node.js architecture ensures zero lag and instant command execution.</p>
+                </div>
+                <div class="p-6 bg-darkbg rounded-xl border border-gray-800 hover:border-primary transition">
+                    <div class="text-4xl mb-4">🔒</div>
+                    <h4 class="text-xl font-bold mb-2">Secure & Private</h4>
+                    <p class="text-gray-400">End-to-end encryption support, owner-only protections, and anti-spam systems.</p>
+                </div>
+                <div class="p-6 bg-darkbg rounded-xl border border-gray-800 hover:border-primary transition">
+                    <div class="text-4xl mb-4">🧩</div>
+                    <h4 class="text-xl font-bold mb-2">Modular Plugins</h4>
+                    <p class="text-gray-400">Easily add or remove commands with our dynamic plugin loading system.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Commands Section -->
+    <section id="commands" class="py-20 px-4">
+        <div class="max-w-7xl mx-auto">
+            <h3 class="text-4xl font-bold text-center mb-12">Command Categories</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="p-4 bg-darkcard rounded-lg text-center">Owner</div>
+                <div class="p-4 bg-darkcard rounded-lg text-center">Group</div>
+                <div class="p-4 bg-darkcard rounded-lg text-center">Fun</div>
+                <div class="p-4 bg-darkcard rounded-lg text-center">AI</div>
+                <div class="p-4 bg-darkcard rounded-lg text-center">Media</div>
+                <div class="p-4 bg-darkcard rounded-lg text-center">Downloader</div>
+                <div class="p-4 bg-darkcard rounded-lg text-center">Sticker</div>
+                <div class="p-4 bg-darkcard rounded-lg text-center">Utility</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Deployment Section -->
+    <section id="deploy" class="py-20 px-4 bg-darkcard">
+        <div class="max-w-7xl mx-auto text-center">
+            <h3 class="text-4xl font-bold mb-12">Deploy Anywhere</h3>            <div class="flex flex-wrap justify-center gap-4">
+                <span class="px-4 py-2 bg-darkbg rounded-full border border-gray-700">Railway</span>
+                <span class="px-4 py-2 bg-darkbg rounded-full border border-gray-700">Render</span>
+                <span class="px-4 py-2 bg-darkbg rounded-full border border-gray-700">Koyeb</span>
+                <span class="px-4 py-2 bg-darkbg rounded-full border border-gray-700">Docker</span>
+                <span class="px-4 py-2 bg-darkbg rounded-full border border-gray-700">VPS</span>
+                <span class="px-4 py-2 bg-darkbg rounded-full border border-gray-700">Termux</span>
+                <span class="px-4 py-2 bg-darkbg rounded-full border border-gray-700">Pterodactyl</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contact" class="py-10 px-4 border-t border-gray-800 text-center text-gray-500">
+        <p>© 2026 DavintoMD. Developed by <span class="text-primary font-bold">Davinto</span>.</p>
+        <p class="mt-2">Contact: +234 816 904 5105</p>
+    </footer>
+</body>
+</html>
